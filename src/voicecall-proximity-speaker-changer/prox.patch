@@ -1,0 +1,66 @@
+diff --git a/usr/share/voicecall-ui-jolla/qml/main.qml b/usr/share/voicecall-ui-jolla/qml/main.qml
+index 9e9306e..9661ac9 100644
+--- a/usr/share/voicecall-ui-jolla/qml/main.qml
++++ b/usr/share/voicecall-ui-jolla/qml/main.qml
+@@ -10,6 +10,7 @@ import "pages"
+ import "pages/dialer"
+ import "cover"
+ import "ota"
++import QtSensors 5.0
+ 
+ ApplicationWindow {
+     id: main
+@@ -355,4 +356,20 @@ ApplicationWindow {
+             windowVisibilityUpdateTimer.start()
+         }
+     }
++
++    property bool proxiActive: false
++    ProximitySensor {
++        id: proxi
++        active: main.state !== 'null' && main.state !== 'disconnected' && main.proxiActive
++    }
++
++    property bool proxiNear: (proxi.active && proxi.reading) ? proxi.reading.near : false
++    onProxiNearChanged: {
++        if (proxiActive && proxiNear) {
++            telephony.audioMode = 'earpiece'
++        }
++        else {
++            telephony.audioMode = 'ihf'
++        }
++    }
+ }
+diff --git a/usr/share/voicecall-ui-jolla/qml/pages/calling/InCallView.qml b/usr/share/voicecall-ui-jolla/qml/pages/calling/InCallView.qml
+index f28e6c4..7e8f07d 100644
+--- a/usr/share/voicecall-ui-jolla/qml/pages/calling/InCallView.qml
++++ b/usr/share/voicecall-ui-jolla/qml/pages/calling/InCallView.qml
+@@ -304,7 +304,8 @@ SilicaFlickable {
+         }
+         Switch {
+             id: speakerSwitch
+-            icon.source: "image://theme/icon-m-speaker"
++            icon.source: "image://theme/icon-m-" + (main.proxiActive ? "refresh" : "speaker")
++            checked: telephony.audioMode === 'ihf'
+             onCheckedChanged: {
+                 if (checked) {
+                     bluetoothAudioSwitch.checked = false
+@@ -313,6 +314,18 @@ SilicaFlickable {
+                     telephony.audioMode = 'earpiece'
+                 }
+             }
++            MouseArea {
++                anchors.fill: parent
++                onClicked: {
++                    if (speakerSwitch.checked) { 
++                        telephony.audioMode = 'earpiece'
++                    }
++                    else {
++                        telephony.audioMode = 'ihf'
++                    }
++                }
++                onPressAndHold: main.proxiActive = !main.proxiActive
++            }
+         }
+         Switch {
+             id: dialerSwitch
